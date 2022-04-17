@@ -1,0 +1,17 @@
+// This file contains commands and parameters to run the ctakes-examples "Hello World" pipeline
+// with UMLS Concept Unique Identifiers (CUI) output
+
+// Load a simple token processing pipeline from another pipeline file
+load org/apache/ctakes/core/pipeline/DefaultTokenizerPipeline.piper
+
+
+// Change the umls and password parameters below
+
+// Default fast dictionary lookup
+add DefaultJCasTermAnnotator
+
+//  UMLS Dictionary Lookup (Old)
+//  Annotates clinically-relevant terms.  This is an older, slower dictionary lookup implementation.
+
+// Collect discovered UMLS Concept Unique Identifiers (CUI) for post-run information
+collectCuis
