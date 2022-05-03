@@ -25,8 +25,16 @@ You should refer to Obesity_data_preprocessing.py and mimiciii_data_preprocessin
 
 ## How to follow this repo
 
+We recommend running our notebooks on Google Colab, which requires minimal effort to set up environment. Please take the follow steps to reproduce our results (don't forget to change file paths!):
+### Data preparation
+1. Check out Data_preprocessing.ipynb to clean raw MIMIC clinical texts and obesity data.
+3. (In your local) Run cTAKES pipeline to get xmi files containing CUIs for each patient.
+4. Checkout the last section in Data_preprocessing.ipynb to extract CUI tokens out of xmi files.
 
-
+### Modeling and Evaluation:
+1. Run MIMICIII_data_preprocessing.ipynb to pretrain embedding models.
+2. Run NNModels.ipynb to train the NN model with MIMIC-III data, evaluate the initial performance, and save the model.
+3. Execute SVM_Models.ipynb to train and evaluate the performances of baseline models, proposed models, and models from ablation study.
 
 ## Results
 
