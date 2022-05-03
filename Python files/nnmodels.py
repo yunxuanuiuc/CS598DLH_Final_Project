@@ -10,6 +10,11 @@ Original file is located at
 from google.colab import drive
 drive.mount('/content/drive')
 
+"""# Constructing the Neural Network model proposed
+In this notebook, we construct the NN model as discussed in section 2.1 of the original paper. We build the model, and fit the model with MIMIC-III data to try to predict ICD9 codes.
+The model will be used later to generate patient representations (from the hidden layer) for disease prediction task.
+"""
+
 import numpy as np
 import pandas as pd
 import os
@@ -21,8 +26,13 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.modules.activation import ReLU
+import sklearn
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
+import pickle
+from gensim.models import Word2Vec
+import warnings
+warnings.filterwarnings('ignore')
 
 # extraction configs:
 MIN_TOKEN_FREQ = 100
@@ -36,15 +46,25 @@ DIAGNOSIS_FILE_PATH = "drive/MyDrive/MIMIC/mimic-iii/DIAGNOSES_ICD.csv"
 PROCEDURES_FILE_PATH = "drive/MyDrive/MIMIC/mimic-iii/PROCEDURES_ICD.csv"
 CORPUS_FILE_PATH = "drive/MyDrive/MIMIC/output_first_half_selected_cuis/" #FILL IN PATH
 
-# CPT_FILE_PATH = "drive/MyDrive/mimic-iii/CPTEVENTS.csv"
-# DIAGNOSIS_FILE_PATH = "drive/MyDrive/mimic-iii/DIAGNOSES_ICD.csv"
-# PROCEDURES_FILE_PATH = "drive/MyDrive/mimic-iii/PROCEDURES_ICD.csv"
-# CORPUS_FILE_PATH = "" #FILL IN PATH
+CPT_FILE_PATH = "drive/MyDrive/mimic-iii/CPTEVENTS.csv"
+DIAGNOSIS_FILE_PATH = "drive/MyDrive/mimic-iii/DIAGNOSES_ICD.csv"
+PROCEDURES_FILE_PATH = "drive/MyDrive/mimic-iii/PROCEDURES_ICD.csv"
+CORPUS_FILE_PATH = "drive/MyDrive/mimic-iii/cuis/" #FILL IN PATH
 
 # model configs
 criterion = nn.BCELoss()
 n_epochs = 75
 batch_size = 50
+
+#word2vec config
+USE_PRETRAINED_W2V = False
+RUN_LOADER = False
+
+
+
+"""# Load the MIMIC-III data
+Note that clinical notes were preprocessed via apache ctakes (check ctakes script and , and Concept Unique Identifiers (CUIs) were already extracted. The ICDLoader takes each patient's file of CUIs and loads the data.
+"""
 
 class ICDLoader: 
   """Load ICD billing codes labels for each patient"""
@@ -156,7 +176,9 @@ class ICDLoader:
     self.patient2label_dict = dict(patient2label_df.values)
 
     #cui init
-    self.make_cui_token2int_mapping()
+    # self.make_cui_token2int_mapping()
+    with open("drive/MyDrive/mimic-iii/token2int_dict.pkl", "rb") as fp:
+      self.token2int = pickle.load(fp)
 
     codes = []
     cui_inputs = []
@@ -185,14 +207,35 @@ class ICDLoader:
 
     return cui_inputs, codes
 
-loader = ICDLoader(CORPUS_FILE_PATH, CPT_FILE_PATH, DIAGNOSIS_FILE_PATH, PROCEDURES_FILE_PATH, MIN_EXAMPLES_PER_CODE, MIN_TOKEN_FREQ, MAX_TOKENS_IN_FILE)
-cui_inputs, codes = loader.run()
+# after the first run, we dumped all critical attributes of ICDLoader so we only need to load them later, avoiding processing the giant MIMIC-III dataset again and again.
+if RUN_LOADER:
+  loader = ICDLoader(CORPUS_FILE_PATH, CPT_FILE_PATH, DIAGNOSIS_FILE_PATH, PROCEDURES_FILE_PATH, MIN_EXAMPLES_PER_CODE, MIN_TOKEN_FREQ, MAX_TOKENS_IN_FILE)
+  cui_inputs, codes = loader.run()
+
+with open("drive/MyDrive/mimic-iii/token2int_dict.pkl", "rb") as fp:
+  token2int = pickle.load(fp)
+
+with open("drive/MyDrive/mimic-iii/cui_inputs.pkl", "rb") as fp:   #Pickling
+  cui_inputs = pickle.load(fp)
+
+with open("drive/MyDrive/mimic-iii/icd9codes.pkl", "rb") as fp:   #Pickling
+  codes = pickle.load(fp)
+
+with open("drive/MyDrive/mimic-iii/patient2label_dict.pkl", "rb") as fp:   #Pickling
+  patient2label_dict = pickle.load(fp)
+
+with open("drive/MyDrive/mimic-iii/label2idx_dict.pkl", "rb") as fp:   #Pickling
+  label2idx_dict = pickle.load(fp)
+
+
+
+"""# Constructing the model"""
 
 maxlen = max([len(patient) for patient in cui_inputs])
-emb_dim = len(loader.token2int)
-n_class = len(loader.label2idx_dict)
+emb_dim = len(token2int)
+n_class = len(label2idx_dict)
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 X_train, X_test, y_train, y_test = train_test_split(cui_inputs,codes, test_size=0.2, random_state=42)
 
@@ -208,30 +251,70 @@ class customDataset(Dataset):
 train_dataset = customDataset(X_train, y_train)
 test_dataset = customDataset(X_test, y_test)
 
+# the paper discussed training 2 versions of the model: (1) with randomly initialized CUI embeddings, (2) with word2vec-pretrained CUI embeddings
+if USE_PRETRAINED_W2V:
+  w2v_model = Word2Vec.load("drive/MyDrive/mimic-iii/word2vec.model")
+
 def collate_fn(data):
     sequences, labels = zip(*data)
-    y = torch.tensor(labels, dtype=torch.float)
+    y = torch.tensor(labels, dtype=torch.float).to(device)
 
     n = len(sequences)
-    x = torch.zeros((n, maxlen), dtype=torch.long)
+    x = torch.zeros((n, maxlen), dtype=torch.long).to(device)
     
     for patient, cuis in enumerate(sequences):
       len_cuis = len(cuis)
-      x[patient][:len_cuis] = torch.tensor(cuis)
+      x[patient][:len_cuis] = torch.tensor(cuis).to(device)
+      
     return x, y
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+def collate_fn_w2v(data):
+    sequences, labels = zip(*data)
+    y = torch.tensor(labels, dtype=torch.float).to(device)
+
+    n = len(sequences)
+    x = torch.zeros((n, maxlen), dtype=torch.long).to(device)
+    
+    for patient, cuis in enumerate(sequences):
+      len_cuis = len(cuis)
+      cui_w2v_idx = [w2v_model.wv.vocab[str(token)].index for token in cuis]
+      x[patient][:len_cuis] = torch.tensor(cui_w2v_idx).to(device)
+    return x, y
+
+if not USE_PRETRAINED_W2V:
+  train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+  test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+else:
+  train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_w2v)
+  test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_w2v)
 
 class NN_representation(nn.Module):
-  def __init__(self, in_dim, n_diseases):
-    super(NN_representation, self).__init__()  
-    self.emb = nn.Embedding(num_embeddings= in_dim, embedding_dim= 300)
+  def __init__(self, in_dim, n_diseases, w2v_model=None):
+    super(NN_representation, self).__init__()
+    if w2v_model:
+      weights = torch.FloatTensor(w2v_model.wv.vectors)
+      self.emb = nn.Embedding(num_embeddings= in_dim, embedding_dim= 300).from_pretrained(weights, freeze=False)
+    else:
+      self.emb = nn.Embedding(num_embeddings= in_dim, embedding_dim= 300)
     self.avg = nn.AdaptiveMaxPool1d(1)
+    
     self.hidden = nn.Linear(300, 1000)
     self.act1 = nn.ReLU()
     self.final = nn.Linear(1000, n_diseases)
     self.act2 = nn.Sigmoid()
+
+  def get_hidden(self, x):
+    temp = self.emb(x)
+    #print(f"after emb, {temp.shape}")
+    temp = torch.permute(temp, (0,2,1))
+    #print(f"after permute, {temp.shape}")
+    temp = self.avg(temp)
+    #print(f"after avg, {temp.shape}")
+    temp = temp.squeeze(-1)
+    #print(f"after squeeze, {temp.shape}")
+    h = self.hidden(temp)
+    return h
+
   def forward(self, x):
     temp = self.emb(x)
     #print(f"after emb, {temp.shape}")
@@ -250,8 +333,15 @@ class NN_representation(nn.Module):
     res = self.act2(temp)
     return res
 
-nnmodel =NN_representation(emb_dim, n_class)
+if not USE_PRETRAINED_W2V:
+  nnmodel =NN_representation(emb_dim, n_class).to(device)
+else:
+  nnmodel =NN_representation(emb_dim, n_class, w2v_model).to(device)
 optimizer = torch.optim.RMSprop(nnmodel.parameters(), lr=0.001)
+
+
+
+"""# Model Training and Evaluation"""
 
 def train(model, loader, n_epochs):
   model.train()
@@ -274,14 +364,14 @@ def test(model, loader):
   y_pred = []
   y_true = []
   for current_x, current_y in loader:
-      preds = model(current_x).detach().numpy()
+      preds = model(current_x).cpu().detach().numpy()
       preds_labels = preds>0.5
       y_pred.append(preds_labels)
-      y_true.append(current_y.numpy())
+      y_true.append(current_y.cpu().numpy())
   y_pred = np.vstack(y_pred)  
   y_true = np.vstack(y_true)        
 
-  p,r,f,_ = precision_recall_fscore_support(y_pred, y_true, average='micro')
+  p,r,f,_ = precision_recall_fscore_support(y_pred, y_true, average='macro')
   acc = accuracy_score(y_pred, y_true)
   return p,r,f,acc
 
@@ -292,4 +382,12 @@ precision, recall, f1, accuracy
 precision_train, recall_train, f1_train, accuracy_train = test(nnmodel, train_loader)
 
 precision_train, recall_train, f1_train, accuracy_train
+
+
+
+"""# Saving the model for tasks in SVM_Models notebook."""
+
+# torch.save(nnmodel.state_dict(), "drive/MyDrive/mimic-iii/nnmodel_pretrained_w2v_state_dict.pt")
+nnmodel_new =NN_representation(emb_dim, n_class).to(device)
+nnmodel_new.load_state_dict(torch.load("drive/MyDrive/mimic-iii/nnmodel_pretrained_w2v_state_dict.pt"))
 
