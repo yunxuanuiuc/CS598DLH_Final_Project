@@ -1,7 +1,7 @@
 ## CS598DLH_Final_Project
 
 # Reproducibility of Learning Patient Representations from Text
-This repository is the implementation of Reproducibility of Learning Patient Representations from Text(to add: link). 
+This repository is the implementation of Reproducibility of Learning Patient Representations, published by Dligach and Miller in 2018.(https://arxiv.org/pdf/1805.02096.pdf). 
 
 ## Requirements
 
