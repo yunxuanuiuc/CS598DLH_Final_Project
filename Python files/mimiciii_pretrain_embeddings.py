@@ -33,7 +33,7 @@ PROCEDURES_FILE_PATH = "drive/MyDrive/mimic-iii/PROCEDURES_ICD.csv"
 CORPUS_FILE_PATH = "drive/MyDrive/mimic-iii/cuis"
 
 """# Load the MIMIC-III data and pretrain word embeddings
-This first cell in this section is the same as the ICDLoader in NNModels.ipynb. In colab env, it's challenging to import classes from other py files - apologies for the duplicate code. We use this class in this notebook to pretrain a word2vec and a doc2vec model, which will be used later in NNModels.ipynb and SVM_Models.ipynb.
+This first cell in this section is the same as the ICDLoader in NNModels.ipynb. In colab env, it's challenging to import classes from other ipynb files - apologies for the duplicate code. We use this class in this notebook to pretrain a word2vec and a doc2vec model, which will be used later in NNModels.ipynb and SVM_Models.ipynb.
 """
 
 class ICDLoader: 
@@ -219,7 +219,6 @@ model = Word2Vec(sentences=cui_inputs_str, window=5, size=300, workers=4, min_co
 model.wv.vectors
 
 model.save("drive/MyDrive/mimic-iii/word2vec_2.model")
-# model = Word2Vec.load("drive/MyDrive/mimic-iii/word2vec.model")
 
 
 

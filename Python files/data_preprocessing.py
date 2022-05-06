@@ -41,13 +41,11 @@ sorted_notes.head()
 for i in range(len(sorted_notes)):
   text = sorted_notes.loc[i, "TEXT"]
   # these illegal chars block the CUI extraction of apache ctakes
-  _illegal_xml_chars_RE = re.compile(u'[\x00-\x08\x0b\x0c\x0e-\x1F\uD800-\uDFFF\uFFFE\uFFFF]')
+  illegal_xml_chars_re = re.compile(u'[\x00-\x08\x0b\x0c\x0e-\x1F\uD800-\uDFFF\uFFFE\uFFFF]')
   if illegal_xml_chars_re.search(text):
     print(i,sorted_notes.loc[i, "SUBJECT_ID"], sorted_notes.loc[i, "TEXT"])
     new_text = illegal_xml_chars_re.sub('', text)
     sorted_notes.loc[i, "TEXT"] = new_text
-
-sorted_notes.loc[767, "TEXT"]
 
 #go through sorted table and write each patient's aggregated clinical notes into a file
 file_str = sorted_notes.loc[0, "TEXT"]

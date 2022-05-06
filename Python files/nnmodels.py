@@ -231,6 +231,7 @@ with open("drive/MyDrive/mimic-iii/label2idx_dict.pkl", "rb") as fp:   #Pickling
 
 """# Constructing the model"""
 
+#params
 maxlen = max([len(patient) for patient in cui_inputs])
 emb_dim = len(token2int)
 n_class = len(label2idx_dict)
@@ -387,7 +388,31 @@ precision_train, recall_train, f1_train, accuracy_train
 
 """# Saving the model for tasks in SVM_Models notebook."""
 
-# torch.save(nnmodel.state_dict(), "drive/MyDrive/mimic-iii/nnmodel_pretrained_w2v_state_dict.pt")
-nnmodel_new =NN_representation(emb_dim, n_class).to(device)
-nnmodel_new.load_state_dict(torch.load("drive/MyDrive/mimic-iii/nnmodel_pretrained_w2v_state_dict.pt"))
+# torch.save(nnmodel.state_dict(), "drive/MyDrive/mimic-iii/nnmodel_state_dict.pt")
+
+
+
+
+
+"""# Hyperparamter Tuning"""
+
+lr_params = [0.001, 0.0001]
+n_epochs_params = [50, 75, 100]
+batch_size_params = [32, 50, 70]
+param_dict = {}
+
+for l in lr_params:
+  for e in n_epochs_params:
+    for b in batch_size_params:
+      train_loader = DataLoader(train_dataset, batch_size=b, shuffle=True, collate_fn=collate_fn)
+      test_loader = DataLoader(test_dataset, batch_size=b, shuffle=True, collate_fn=collate_fn)
+      nnmodel =NN_representation(emb_dim, n_class).to(device)
+      optimizer = torch.optim.RMSprop(nnmodel.parameters(), lr=l)
+      train(nnmodel, train_loader, e)
+      precision, recall, f1, accuracy = test(nnmodel, test_loader)
+      param_dict[(l, e, b)] = (precision, recall, f1, accuracy)
+      print(param_dict)
+      print()
+
+param_dict
 
