@@ -1,7 +1,11 @@
 ## CS598DLH_Final_Project
 
 # Reproducibility of Learning Patient Representations from Text
-This repository is the implementation of Reproducibility of Learning Patient Representations, published by Dligach and Miller in 2018.(https://arxiv.org/pdf/1805.02096.pdf). 
+This repository is the implementation of Reproducibility of Learning Patient Representations, published by Dligach and Miller in 2018.(https://arxiv.org/pdf/1805.02096.pdf). T. Dligach, D. & Miller. 2018. Learning patient repre-
+sentations from text. Association for Computational
+Linguistic, pages 119–123.
+
+Link to Original Paper's Code Repo: https://github.com/dmitriydligach/starsem2018-patient-representations
 
 ## Requirements
 
@@ -33,12 +37,27 @@ We recommend running our notebooks on Google Colab, which requires minimal effor
 
 ### Modeling and Evaluation:
 1. Run MIMICIII_pretrain_embeddings.ipynb to pretrain embedding models.
-2. Run NNModels.ipynb to train the NN model with MIMIC-III data, evaluate the initial performance, and save the model.
+2. Run NNModels.ipynb to train the NN model with MIMIC-III data, evaluate the initial performance, and save the model. (Can use USE_WORD2VEC variable to toggle between training with CUI Word2Vec pretrained embeddings vs. randomly initialized embeddings)
 3. Execute SVM_Models.ipynb to train and evaluate the performances of baseline models, proposed models, and models from ablation study.
 
 ## Results
 
-TBA
+Result 1:
+
+Original vs. Replicated F1 Scores for ICD9 Billing Code Prediction task. We compare between random initialization for NN model vs. pretrained CUI Word2Vec embedding initialization.
+| Initialization  | Second Header | Third Header  |
+| ------------- | ------------- | ------------- |
+| Random  | 0.447 | 0.390  |
+| Word2Vec  | 0.473  | 0.177  |
+
+Result 2:
+
+Original vs. Replicated F1 Scores, averaged over all diseases, for obesity comorbidity prediction. Models are SVM models with sparse (BoW) features, SVD features, and learned dense patient representation features.
+
+| Orig/Rep | Sparse  | SVD | Learned |
+| ------------- | ------------- | ------------- | ------------- |
+| Orig | 0.675 | 0.674  | 0.715
+| Rep  | 0.672  | 0.645  | 0.695
 
 ## Contribution
 This is a final project for 2022S CS598 Deep Learning for Healthcare, developed by Michael Huang and Yunxuan Li. 
