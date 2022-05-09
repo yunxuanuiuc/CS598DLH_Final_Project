@@ -1,8 +1,7 @@
 ## CS598DLH_Final_Project
 
 # Reproducibility of Learning Patient Representations from Text
-This repository is the implementation of Reproducibility of Learning Patient Representations, published by Dligach and Miller in 2018.(https://arxiv.org/pdf/1805.02096.pdf). T. Dligach, D. & Miller. 2018. Learning patient repre-
-sentations from text. Association for Computational
+This repository is the implementation of Reproducibility of Learning Patient Representations, published by Dligach and Miller in 2018.(https://arxiv.org/pdf/1805.02096.pdf). T. Dligach, D. & Miller. 2018. Learning patient representations from text. Association for Computational
 Linguistic, pages 119–123.
 
 Link to Original Paper's Code Repo: https://github.com/dmitriydligach/starsem2018-patient-representations
@@ -45,7 +44,7 @@ We recommend running our notebooks on Google Colab, which requires minimal effor
 Result 1:
 
 Original vs. Replicated F1 Scores for ICD9 Billing Code Prediction task. We compare between random initialization for NN model vs. pretrained CUI Word2Vec embedding initialization.
-| Initialization  | Second Header | Third Header  |
+| Initialization  | Original F1 | Replicated F1  |
 | ------------- | ------------- | ------------- |
 | Random  | 0.447 | 0.390  |
 | Word2Vec  | 0.473  | 0.177  |
